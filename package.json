@@ -1,7 +1,7 @@
 {
-  "name": "my-ts-lib",
+  "name": "vad-js",
   "version": "0.0.0",
-  "description": "My awesome typescript library",
+  "description": "Accurate and performant VAD package for the browser.",
   "publishConfig": {
     "access": "public"
   },
