@@ -3,9 +3,9 @@ Some of this code, together with the default options found in index.ts,
 were taken (or took inspiration) from https://github.com/snakers4/silero-vad
 */
 
-import { SpeechProbabilities } from "./models"
-import { Message } from "./messages"
-import { log } from "./logging"
+// import { SpeechProbabilities } from "./models"
+import { Message } from "../message"
+// import { log } from "./logging"
 
 const RECOMMENDED_FRAME_SAMPLES = [512, 1024, 1536]
 
@@ -55,37 +55,37 @@ export const defaultFrameProcessorOptions: FrameProcessorOptions = {
 
 export function validateOptions(options: FrameProcessorOptions) {
   if (!RECOMMENDED_FRAME_SAMPLES.includes(options.frameSamples)) {
-    log.warn("You are using an unusual frame size")
+    console.warn("You are using an unusual frame size")
   }
   if (
     options.positiveSpeechThreshold < 0 ||
     options.negativeSpeechThreshold > 1
   ) {
-    log.error("postiveSpeechThreshold should be a number between 0 and 1")
+    console.error("postiveSpeechThreshold should be a number between 0 and 1")
   }
   if (
     options.negativeSpeechThreshold < 0 ||
     options.negativeSpeechThreshold > options.positiveSpeechThreshold
   ) {
-    log.error(
+    console.error(
       "negativeSpeechThreshold should be between 0 and postiveSpeechThreshold"
     )
   }
   if (options.preSpeechPadFrames < 0) {
-    log.error("preSpeechPadFrames should be positive")
+    console.error("preSpeechPadFrames should be positive")
   }
   if (options.redemptionFrames < 0) {
-    log.error("preSpeechPadFrames should be positive")
+    console.error("preSpeechPadFrames should be positive")
   }
 }
 
 export interface FrameProcessorInterface {
   resume: () => void
-  process: (arr: Float32Array) => Promise<{
-    probs?: SpeechProbabilities
+  process: (arr: Float32Array, speechProbability: number) => {
+    probs?: number
     msg?: Message
     audio?: Float32Array
-  }>
+  }
   endSegment: () => { msg?: Message; audio?: Float32Array }
 }
 
@@ -112,10 +112,10 @@ export class FrameProcessor implements FrameProcessorInterface {
   active = false
 
   constructor(
-    public modelProcessFunc: (
-      frame: Float32Array
-    ) => Promise<SpeechProbabilities>,
-    public modelResetFunc: () => any,
+    // public modelProcessFunc: (
+    //   frame: Float32Array
+    // ) => Promise<SpeechProbabilities>,
+    // public modelResetFunc: () => any,
     public options: FrameProcessorOptions
   ) {
     this.audioBuffer = []
@@ -125,7 +125,7 @@ export class FrameProcessor implements FrameProcessorInterface {
   reset = () => {
     this.speaking = false
     this.audioBuffer = []
-    this.modelResetFunc()
+    // this.modelResetFunc()
     this.redemptionCounter = 0
   }
 
@@ -159,33 +159,33 @@ export class FrameProcessor implements FrameProcessorInterface {
     return {}
   }
 
-  process = async (frame: Float32Array) => {
-    if (!this.active) {
-      return {}
-    }
-    const probs = await this.modelProcessFunc(frame)
+  process = (frame: Float32Array, speechProbability: number) => {
+    // if (!this.active) {
+    //   return {}
+    // }
+    // const probs = await this.modelProcessFunc(frame)
     this.audioBuffer.push({
       frame,
-      isSpeech: probs.isSpeech >= this.options.positiveSpeechThreshold,
+      isSpeech: speechProbability >= this.options.positiveSpeechThreshold,
     })
 
     if (
-      probs.isSpeech >= this.options.positiveSpeechThreshold &&
+      speechProbability >= this.options.positiveSpeechThreshold &&
       this.redemptionCounter
     ) {
       this.redemptionCounter = 0
     }
 
     if (
-      probs.isSpeech >= this.options.positiveSpeechThreshold &&
+      speechProbability >= this.options.positiveSpeechThreshold &&
       !this.speaking
     ) {
       this.speaking = true
-      return { probs, msg: Message.SpeechStart }
+      return { speechProbability, msg: Message.SpeechStart }
     }
 
     if (
-      probs.isSpeech < this.options.negativeSpeechThreshold &&
+      speechProbability < this.options.negativeSpeechThreshold &&
       this.speaking &&
       ++this.redemptionCounter >= this.options.redemptionFrames
     ) {
@@ -201,9 +201,9 @@ export class FrameProcessor implements FrameProcessorInterface {
 
       if (speechFrameCount >= this.options.minSpeechFrames) {
         const audio = concatArrays(audioBuffer.map((item) => item.frame))
-        return { probs, msg: Message.SpeechEnd, audio }
+        return { speechProbability, msg: Message.SpeechEnd, audio }
       } else {
-        return { probs, msg: Message.VADMisfire }
+        return { speechProbability, msg: Message.VADMisfire }
       }
     }
 
@@ -212,6 +212,6 @@ export class FrameProcessor implements FrameProcessorInterface {
         this.audioBuffer.shift()
       }
     }
-    return { probs }
+    return { speechProbability }
   }
 }

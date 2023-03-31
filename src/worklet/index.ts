@@ -3,6 +3,7 @@ import createRNNWasmModuleSync from '../rnnoise-wasm/dist/rnnoise-sync';
 
 import { leastCommonMultiple } from './mathUtils';
 import RnnoiseProcessor from './RnnoiseProcessor';
+import { FrameProcessor } from './frameProcessor';
 
 
 /**
@@ -13,6 +14,11 @@ class NoiseSuppressorWorklet extends AudioWorkletProcessor {
      * RnnoiseProcessor instance.
      */
     private _denoiseProcessor: RnnoiseProcessor;
+
+    /**
+     * Frame processor instance.
+     */
+    private _frameProcessor: FrameProcessor;
 
     /**
      * Audio worklets work with a predefined sample rate of 128.
@@ -70,6 +76,15 @@ class NoiseSuppressorWorklet extends AudioWorkletProcessor {
          * PCM Sample size expected by the denoise processor.
          */
         this._denoiseSampleSize = this._denoiseProcessor.getSampleLength();
+
+        this._frameProcessor = new FrameProcessor({
+            positiveSpeechThreshold: 0.7,
+            negativeSpeechThreshold: 0.5 - 0.15,
+            preSpeechPadFrames: 1,
+            redemptionFrames: 30,
+            frameSamples: 480,
+            minSpeechFrames: 8,
+        });
 
         /**
          * In order to avoid unnecessary memory related operations a circular buffer was used.
@@ -131,8 +146,10 @@ class NoiseSuppressorWorklet extends AudioWorkletProcessor {
                 this._denoisedBufferLength + this._denoiseSampleSize
             );
 
-            const ret = this._denoiseProcessor.processAudioFrame(denoiseFrame, true);
-            console.log(ret);
+            const speechProbability = this._denoiseProcessor.processAudioFrame(denoiseFrame, true);
+            const message = this._frameProcessor.process(inData, speechProbability);
+            this.port.postMessage(message);
+            // console.log(ret);
         }
 
         // Determine how much denoised audio is available, if the start index of denoised samples is smaller

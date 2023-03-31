@@ -1,3 +1,4 @@
+import { Message } from "./message"
 
 export async function initializeRnnoise(workletUrl: string | URL, audioContext: AudioContext): Promise<AudioWorkletNode | undefined> {
     // await audioContext.resume();
@@ -16,7 +17,25 @@ export async function initializeRnnoise(workletUrl: string | URL, audioContext: 
     }
 
     // After the resolution of module loading, an AudioWorkletNode can be constructed.
+    const node = new AudioWorkletNode(audioContext, 'NoiseSuppressorWorklet');
 
-    return new AudioWorkletNode(audioContext, 'NoiseSuppressorWorklet');
+    node.port.onmessage = async (ev: MessageEvent) => {
+      // console.log('Message from worklet: ', ev.data);
+
+      switch (ev.data?.msg) {
+        case Message.SpeechEnd:
+        case Message.SpeechStart:
+        case Message.VADMisfire:
+          console.log('Message from worklet: ', ev.data);
+          break
+
+        default:
+          break
+      }
+    }
+
+
+    return node;
+
 
 }

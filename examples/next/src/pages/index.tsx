@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { initializeRnnoise } from 'vad-js'
 
 export default function Home() {
   const audioCtx = useRef<AudioContext>();
+  const [isSpeaking, setIsSpeaking] = useState<boolean>(false)
 
   useEffect(() => {
   }, [])
@@ -23,7 +24,28 @@ export default function Home() {
       throw new Error('Failed to initialize rnnoise');
     }
     source.connect(rnn);
-    window.rnn = rnn;
+    /* window.rnn = rnn; */
+
+    rnn.port.onmessage = async (ev: MessageEvent) => {
+      switch (ev.data?.msg) {
+        case "SPEECH_END":
+          setIsSpeaking(false);
+          console.log("SPEECH_END");
+          break;
+        case "SPEECH_START":
+          setIsSpeaking(true);
+          console.log("SPEECH_START");
+          break;
+        case "VAD_MISFIRE":
+          setIsSpeaking(false);
+          console.log("VAD_MISFIRE");
+          break
+
+        default:
+          break
+      }
+    }
+
 
   }, [])
 
@@ -37,6 +59,11 @@ export default function Home() {
         >
           Start
         </button>
+        { isSpeaking &&
+        <div className="z-50 py-2.5 px-3.5 text-sm font-semibold text-white bg-green-500 rounded-md shadow-sm hover:bg-green-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-500">
+          Speaking
+        </div>
+        }
       </div>
 
 
