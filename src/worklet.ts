@@ -78,7 +78,7 @@ class NoiseSuppressorWorklet extends AudioWorkletProcessor {
         this._denoiseSampleSize = this._denoiseProcessor.getSampleLength();
 
         this._frameProcessor = new FrameProcessor({
-            positiveSpeechThreshold: 0.7,
+            positiveSpeechThreshold: 0.9,
             negativeSpeechThreshold: 0.5 - 0.15,
             preSpeechPadFrames: 1,
             redemptionFrames: 30,
