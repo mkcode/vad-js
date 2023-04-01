@@ -1,11 +1,11 @@
 
-var createRNNWasmModuleSync = (() => {
-  var _scriptDir = import.meta.url;
+var createRNNWasmModuleWorklet = (() => {
+  var _scriptDir = typeof document !== 'undefined' && document.currentScript ? document.currentScript.src : undefined;
   
   return (
-function(createRNNWasmModuleSync = {})  {
+function(createRNNWasmModuleWorklet = {})  {
 
-var Module = typeof createRNNWasmModuleSync != "undefined" ? createRNNWasmModuleSync : {};
+var Module = typeof createRNNWasmModuleWorklet != "undefined" ? createRNNWasmModuleWorklet : {};
 
 var readyPromiseResolve, readyPromiseReject;
 
@@ -496,9 +496,9 @@ if (Module["preInit"]) {
 run();
 
 
-  return createRNNWasmModuleSync
+  return createRNNWasmModuleWorklet
 }
 
 );
 })();
-export default createRNNWasmModuleSync;
+export default createRNNWasmModuleWorklet;
