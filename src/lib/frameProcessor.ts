@@ -4,7 +4,7 @@ were taken (or took inspiration) from https://github.com/snakers4/silero-vad
 */
 
 // import { SpeechProbabilities } from "./models"
-import { Message } from "../message"
+import { Message } from "./message"
 // import { log } from "./logging"
 
 const RECOMMENDED_FRAME_SAMPLES = [512, 1024, 1536]

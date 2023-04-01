@@ -1,15 +1,13 @@
 // @ts-ignore
-import createRNNWasmModuleSync from '../rnnoise-wasm/dist/rnnoise-sync';
+import createRNNWasmModule from '../rnnoise-wasm/dist/rnnoise';
 
 import { leastCommonMultiple } from './mathUtils';
 import RnnoiseProcessor from './RnnoiseProcessor';
 import { FrameProcessor } from './frameProcessor';
+import { MicNode } from './micNode';
 
 
-/**
- * Audio worklet which will denoise targeted audio stream using rnnoise.
- */
-class NoiseSuppressorWorklet extends AudioWorkletProcessor {
+export class VadProcessor extends EventTarget {
     /**
      * RnnoiseProcessor instance.
      */
@@ -23,7 +21,7 @@ class NoiseSuppressorWorklet extends AudioWorkletProcessor {
     /**
      * Audio worklets work with a predefined sample rate of 128.
      */
-    private _procNodeSampleRate = 128;
+    private _procNodeSampleRate = 256;
 
     /**
      * PCM Sample size expected by the denoise processor.
@@ -58,11 +56,24 @@ class NoiseSuppressorWorklet extends AudioWorkletProcessor {
      */
     private _denoisedBufferIndx = 0;
 
+    private _micNode: MicNode;
+
     /**
      * C'tor.
      */
-    constructor() {
+    constructor(micNode: MicNode) {
         super();
+
+        this._micNode = micNode;
+
+        const outData = new Float32Array(0);
+
+        const processMicData = (event: Event) => {
+          this.process((event as CustomEvent<Float32Array>).detail, outData);
+        };
+
+        this._micNode.addEventListener('micFrame', processMicData);
+
 
         console.log('NoiseSuppressorWorklet: constructor()');
 
@@ -70,21 +81,24 @@ class NoiseSuppressorWorklet extends AudioWorkletProcessor {
          * The wasm module needs to be compiled to load synchronously as the audio worklet `addModule()`
          * initialization process does not wait for the resolution of promises in the AudioWorkletGlobalScope.
          */
-        this._denoiseProcessor = new RnnoiseProcessor(createRNNWasmModuleSync());
+        createRNNWasmModule().then((wasmModule) => {
+
+          this._denoiseProcessor = new RnnoiseProcessor(wasmModule);
+        // this._denoiseProcessor = new RnnoiseProcessor(createRNNWasmModuleSync());
 
         /**
          * PCM Sample size expected by the denoise processor.
          */
-        this._denoiseSampleSize = this._denoiseProcessor.getSampleLength();
+          this._denoiseSampleSize = this._denoiseProcessor.getSampleLength();
 
-        this._frameProcessor = new FrameProcessor({
-            positiveSpeechThreshold: 0.7,
+          this._frameProcessor = new FrameProcessor({
+            positiveSpeechThreshold: 0.9,
             negativeSpeechThreshold: 0.5 - 0.15,
             preSpeechPadFrames: 1,
             redemptionFrames: 30,
             frameSamples: 480,
             minSpeechFrames: 8,
-        });
+          });
 
         /**
          * In order to avoid unnecessary memory related operations a circular buffer was used.
@@ -98,8 +112,9 @@ class NoiseSuppressorWorklet extends AudioWorkletProcessor {
          * guarantee that by the time the buffer reaches the end the residue will be a multiple of the
          * `procNodeSampleRate` and the residue won't be split.
          */
-        this._circularBufferLength = leastCommonMultiple(this._procNodeSampleRate, this._denoiseSampleSize);
-        this._circularBuffer = new Float32Array(this._circularBufferLength);
+          this._circularBufferLength = leastCommonMultiple(this._procNodeSampleRate, this._denoiseSampleSize);
+          this._circularBuffer = new Float32Array(this._circularBufferLength);
+        });
     }
 
     /**
@@ -114,14 +129,15 @@ class NoiseSuppressorWorklet extends AudioWorkletProcessor {
      * @returns {boolean} - Boolean value that returns whether or not the processor should remain active. Returning
      * false will terminate it.
      */
-    process(inputs: Float32Array[][], outputs: Float32Array[][]) {
+    // process(inputs: Float32Array[][], outputs: Float32Array[][]) {
+    process(inData: Float32Array, outData: Float32Array) {
 
         // We expect the incoming track to be mono, if a stereo track is passed only on of its channels will get
         // denoised and sent pack.
         // TODO Technically we can denoise both channel however this might require a new rnnoise context, some more
         // investigation is required.
-        const inData = inputs[0][0];
-        const outData = outputs[0][0];
+        // const inData = inputs[0][0];
+        // const outData = outputs[0][0];
 
         // Exit out early if there is no input data (input node not connected/disconnected)
         // as rest of worklet will crash otherwise
@@ -148,8 +164,9 @@ class NoiseSuppressorWorklet extends AudioWorkletProcessor {
 
             const speechProbability = this._denoiseProcessor.processAudioFrame(denoiseFrame, true);
             const message = this._frameProcessor.process(inData, speechProbability);
-            this.port.postMessage(message);
-            // console.log(ret);
+            // this.port.postMessage(message);
+            this.dispatchEvent(new CustomEvent('vad', { detail: message }))
+            // console.log(message);
         }
 
         // Determine how much denoised audio is available, if the start index of denoised samples is smaller
@@ -193,5 +210,3 @@ class NoiseSuppressorWorklet extends AudioWorkletProcessor {
         return true;
     }
 }
-
-registerProcessor('NoiseSuppressorWorklet', NoiseSuppressorWorklet);

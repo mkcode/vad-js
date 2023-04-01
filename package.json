@@ -8,19 +8,16 @@
   "files": [
     "dist"
   ],
-  "main": "./dist/index.js",
+  "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
   "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
-    },
-    "./vadNodeWorklet": "./dist/vadNodeWorklet.js"
+    ".": "./dist/index.mjs",
+    "./vadNodeWorklet": "./dist/worklet.global.js"
   },
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build-fast": "tsup --config tsup.config.ts",
-    "build": "pnpm run build-fast -- --dts --dts-resolve",
+    "build-fast": "tsup",
+    "build": "tsup --dts-resolve",
     "test": "vitest run",
     "prepublishOnly": "pnpm run build"
   },

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { MicNode, VadProcessor, initializeRnnoise } from 'vad-js'
+import { MicNode, VadProcessor, initializeRnnoiseWorklet } from 'vad-js'
 
 export default function Home() {
   const audioCtx = useRef<AudioContext>();
@@ -45,12 +45,11 @@ export default function Home() {
     const source = audioCtx.current.createMediaStreamSource(stream);
 
 
-    const rnn = await initializeRnnoise(workletUrl, audioCtx.current);
+    const rnn = await initializeRnnoiseWorklet(workletUrl, audioCtx.current);
     if (!rnn) {
       throw new Error('Failed to initialize rnnoise');
     }
     source.connect(rnn);
-    /* window.rnn = rnn; */
 
     rnn.port.onmessage = async (ev: MessageEvent) => {
       switch (ev.data?.msg) {
@@ -83,7 +82,14 @@ export default function Home() {
           className="z-50 py-2.5 px-3.5 text-sm font-semibold text-white bg-indigo-500 rounded-md shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
           onClick={start}
         >
-          Start
+          Start Browser
+        </button>
+        <button
+          type="button"
+          className="z-50 py-2.5 px-3.5 ml-2 text-sm font-semibold text-white bg-indigo-500 rounded-md shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+          onClick={startWorklet}
+        >
+          Start Worklet
         </button>
         { isSpeaking &&
         <div className="z-50 py-2.5 px-3.5 mt-20 text-sm font-semibold text-white bg-green-500 rounded-md shadow-sm hover:bg-green-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-500">

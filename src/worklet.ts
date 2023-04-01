@@ -1,13 +1,15 @@
 // @ts-ignore
-import createRNNWasmModuleSync from '../rnnoise-wasm/dist/rnnoise-custom';
+import createRNNWasmModuleWorklet from './rnnoise-wasm/dist/rnnoise-worklet';
 
-import { leastCommonMultiple } from './mathUtils';
-import RnnoiseProcessor from './RnnoiseProcessor';
-import { FrameProcessor } from './frameProcessor';
-import { MicNode } from './micNode';
+import { leastCommonMultiple } from './lib/mathUtils';
+import RnnoiseProcessor from './lib/RnnoiseProcessor';
+import { FrameProcessor } from './lib/frameProcessor';
 
 
-export class VadProcessor extends EventTarget {
+/**
+ * Audio worklet which will denoise targeted audio stream using rnnoise.
+ */
+class NoiseSuppressorWorklet extends AudioWorkletProcessor {
     /**
      * RnnoiseProcessor instance.
      */
@@ -21,7 +23,7 @@ export class VadProcessor extends EventTarget {
     /**
      * Audio worklets work with a predefined sample rate of 128.
      */
-    private _procNodeSampleRate = 256;
+    private _procNodeSampleRate = 128;
 
     /**
      * PCM Sample size expected by the denoise processor.
@@ -56,24 +58,11 @@ export class VadProcessor extends EventTarget {
      */
     private _denoisedBufferIndx = 0;
 
-    private _micNode: MicNode;
-
     /**
      * C'tor.
      */
-    constructor(micNode: MicNode) {
+    constructor() {
         super();
-
-        this._micNode = micNode;
-
-        const outData = new Float32Array(0);
-
-        const processMicData = (event: Event) => {
-          this.process((event as CustomEvent<Float32Array>).detail, outData);
-        };
-
-        this._micNode.addEventListener('micFrame', processMicData);
-
 
         console.log('NoiseSuppressorWorklet: constructor()');
 
@@ -81,24 +70,21 @@ export class VadProcessor extends EventTarget {
          * The wasm module needs to be compiled to load synchronously as the audio worklet `addModule()`
          * initialization process does not wait for the resolution of promises in the AudioWorkletGlobalScope.
          */
-        createRNNWasmModuleSync().then((wasmModule) => {
-
-          this._denoiseProcessor = new RnnoiseProcessor(wasmModule);
-        // this._denoiseProcessor = new RnnoiseProcessor(createRNNWasmModuleSync());
+        this._denoiseProcessor = new RnnoiseProcessor(createRNNWasmModuleWorklet());
 
         /**
          * PCM Sample size expected by the denoise processor.
          */
-          this._denoiseSampleSize = this._denoiseProcessor.getSampleLength();
+        this._denoiseSampleSize = this._denoiseProcessor.getSampleLength();
 
-          this._frameProcessor = new FrameProcessor({
-            positiveSpeechThreshold: 0.9,
+        this._frameProcessor = new FrameProcessor({
+            positiveSpeechThreshold: 0.7,
             negativeSpeechThreshold: 0.5 - 0.15,
             preSpeechPadFrames: 1,
             redemptionFrames: 30,
             frameSamples: 480,
             minSpeechFrames: 8,
-          });
+        });
 
         /**
          * In order to avoid unnecessary memory related operations a circular buffer was used.
@@ -112,9 +98,8 @@ export class VadProcessor extends EventTarget {
          * guarantee that by the time the buffer reaches the end the residue will be a multiple of the
          * `procNodeSampleRate` and the residue won't be split.
          */
-          this._circularBufferLength = leastCommonMultiple(this._procNodeSampleRate, this._denoiseSampleSize);
-          this._circularBuffer = new Float32Array(this._circularBufferLength);
-        });
+        this._circularBufferLength = leastCommonMultiple(this._procNodeSampleRate, this._denoiseSampleSize);
+        this._circularBuffer = new Float32Array(this._circularBufferLength);
     }
 
     /**
@@ -129,15 +114,14 @@ export class VadProcessor extends EventTarget {
      * @returns {boolean} - Boolean value that returns whether or not the processor should remain active. Returning
      * false will terminate it.
      */
-    // process(inputs: Float32Array[][], outputs: Float32Array[][]) {
-    process(inData: Float32Array, outData: Float32Array) {
+    process(inputs: Float32Array[][], outputs: Float32Array[][]) {
 
         // We expect the incoming track to be mono, if a stereo track is passed only on of its channels will get
         // denoised and sent pack.
         // TODO Technically we can denoise both channel however this might require a new rnnoise context, some more
         // investigation is required.
-        // const inData = inputs[0][0];
-        // const outData = outputs[0][0];
+        const inData = inputs[0][0];
+        const outData = outputs[0][0];
 
         // Exit out early if there is no input data (input node not connected/disconnected)
         // as rest of worklet will crash otherwise
@@ -164,9 +148,7 @@ export class VadProcessor extends EventTarget {
 
             const speechProbability = this._denoiseProcessor.processAudioFrame(denoiseFrame, true);
             const message = this._frameProcessor.process(inData, speechProbability);
-            // this.port.postMessage(message);
-            this.dispatchEvent(new CustomEvent('vad', { detail: message }))
-            // console.log(message);
+            this.port.postMessage(message);
         }
 
         // Determine how much denoised audio is available, if the start index of denoised samples is smaller
@@ -210,3 +192,5 @@ export class VadProcessor extends EventTarget {
         return true;
     }
 }
+
+registerProcessor('NoiseSuppressorWorklet', NoiseSuppressorWorklet);

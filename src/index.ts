@@ -1,9 +1,9 @@
-import { Message } from "./message"
+import { Message } from "./lib/message"
 
-export { MicNode } from "./worklet/micNode"
-export { VadProcessor } from "./worklet/vadProcessor"
+export { MicNode } from "./lib/micNode"
+export { VadProcessor } from "./lib/vadProcessor"
 
-export async function initializeRnnoise(workletUrl: string | URL, audioContext: AudioContext): Promise<AudioWorkletNode | undefined> {
+export async function initializeRnnoiseWorklet(workletUrl: string | URL, audioContext: AudioContext): Promise<AudioWorkletNode | undefined> {
     // await audioContext.resume();
 
     // const baseUrl = `${getBaseUrl()}libs/`;
