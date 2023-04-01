@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { initializeRnnoise } from 'vad-js'
+import { MicNode, VadProcessor, initializeRnnoise } from 'vad-js'
 
 export default function Home() {
   const audioCtx = useRef<AudioContext>();
@@ -9,6 +9,32 @@ export default function Home() {
   }, [])
 
   const start = useCallback(async () => {
+    const micNode = new MicNode()
+    const vadProcessor = new VadProcessor(micNode)
+    vadProcessor.addEventListener('vad', (event) => {
+      switch (event.detail?.msg) {
+        case "SPEECH_END":
+          setIsSpeaking(false);
+          console.log("SPEECH_END");
+          break;
+        case "SPEECH_START":
+          setIsSpeaking(true);
+          console.log("SPEECH_START");
+          break;
+        case "VAD_MISFIRE":
+          setIsSpeaking(false);
+          console.log("VAD_MISFIRE");
+          break
+
+        default:
+          break
+      }
+    })
+
+    micNode.start();
+  }, [])
+
+  const startWorklet = useCallback(async () => {
     if (!audioCtx.current) {
       audioCtx.current = new AudioContext();
     }
@@ -60,7 +86,7 @@ export default function Home() {
           Start
         </button>
         { isSpeaking &&
-        <div className="z-50 py-2.5 px-3.5 text-sm font-semibold text-white bg-green-500 rounded-md shadow-sm hover:bg-green-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-500">
+        <div className="z-50 py-2.5 px-3.5 mt-20 text-sm font-semibold text-white bg-green-500 rounded-md shadow-sm hover:bg-green-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-500">
           Speaking
         </div>
         }

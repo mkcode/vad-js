@@ -1,5 +1,8 @@
 import { Message } from "./message"
 
+export { MicNode } from "./worklet/micNode"
+export { VadProcessor } from "./worklet/vadProcessor"
+
 export async function initializeRnnoise(workletUrl: string | URL, audioContext: AudioContext): Promise<AudioWorkletNode | undefined> {
     // await audioContext.resume();
 
