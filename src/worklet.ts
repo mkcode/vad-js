@@ -2,7 +2,7 @@
 import createRNNWasmModuleWorklet from './rnnoise-wasm/dist/rnnoise-worklet';
 
 import { leastCommonMultiple } from './lib/mathUtils';
-import RnnoiseProcessor from './lib/RnnoiseProcessor';
+import { RnnoiseProcessor, IRnnoiseModule } from './lib/RnnoiseProcessor';
 import { FrameProcessor } from './lib/frameProcessor';
 
 
@@ -70,7 +70,7 @@ class NoiseSuppressorWorklet extends AudioWorkletProcessor {
          * The wasm module needs to be compiled to load synchronously as the audio worklet `addModule()`
          * initialization process does not wait for the resolution of promises in the AudioWorkletGlobalScope.
          */
-        this._denoiseProcessor = new RnnoiseProcessor(createRNNWasmModuleWorklet());
+        this._denoiseProcessor = new RnnoiseProcessor(createRNNWasmModuleWorklet() as IRnnoiseModule);
 
         /**
          * PCM Sample size expected by the denoise processor.

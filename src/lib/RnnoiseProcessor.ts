@@ -1,6 +1,6 @@
 /* eslint-disable no-bitwise */
 
-interface IRnnoiseModule extends EmscriptenModule {
+export interface IRnnoiseModule extends EmscriptenModule {
     _rnnoise_create: () => number;
     _rnnoise_destroy: (context: number) => void;
     _rnnoise_process_frame: (context: number, input: number, output: number) => number;
@@ -31,7 +31,7 @@ const SHIFT_16_BIT_NR = 32768;
  * memory management and exposes rnnoise functionality such as PCM audio denoising and VAD (voice activity
  * detection) scores.
  */
-export default class RnnoiseProcessor {
+export class RnnoiseProcessor {
     /**
      * Rnnoise context object needed to perform the audio processing.
      */

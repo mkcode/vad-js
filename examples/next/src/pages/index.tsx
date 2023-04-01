@@ -10,7 +10,7 @@ export default function Home() {
 
   const start = useCallback(async () => {
     const micNode = new MicNode()
-    const vadProcessor = new VadProcessor(micNode)
+    const vadProcessor = await VadProcessor.initialize(micNode)
     vadProcessor.addEventListener('vad', (event) => {
       switch (event.detail?.msg) {
         case "SPEECH_END":

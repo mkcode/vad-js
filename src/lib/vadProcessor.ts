@@ -2,7 +2,7 @@
 import createRNNWasmModule from '../rnnoise-wasm/dist/rnnoise';
 
 import { leastCommonMultiple } from './mathUtils';
-import RnnoiseProcessor from './RnnoiseProcessor';
+import { RnnoiseProcessor, IRnnoiseModule } from './RnnoiseProcessor';
 import { FrameProcessor } from './frameProcessor';
 import { MicNode } from './micNode';
 
@@ -58,10 +58,15 @@ export class VadProcessor extends EventTarget {
 
     private _micNode: MicNode;
 
+    public static initialize = async (micNode: MicNode) => {
+      const wasmModule = await createRNNWasmModule();
+      return new VadProcessor(micNode, wasmModule);
+    }
+
     /**
      * C'tor.
      */
-    constructor(micNode: MicNode) {
+    constructor(micNode: MicNode, wasmModule: IRnnoiseModule) {
         super();
 
         this._micNode = micNode;
@@ -81,40 +86,38 @@ export class VadProcessor extends EventTarget {
          * The wasm module needs to be compiled to load synchronously as the audio worklet `addModule()`
          * initialization process does not wait for the resolution of promises in the AudioWorkletGlobalScope.
          */
-        createRNNWasmModule().then((wasmModule) => {
 
-          this._denoiseProcessor = new RnnoiseProcessor(wasmModule);
+        this._denoiseProcessor = new RnnoiseProcessor(wasmModule);
         // this._denoiseProcessor = new RnnoiseProcessor(createRNNWasmModuleSync());
 
         /**
-         * PCM Sample size expected by the denoise processor.
-         */
-          this._denoiseSampleSize = this._denoiseProcessor.getSampleLength();
+        * PCM Sample size expected by the denoise processor.
+        */
+        this._denoiseSampleSize = this._denoiseProcessor.getSampleLength();
 
-          this._frameProcessor = new FrameProcessor({
-            positiveSpeechThreshold: 0.9,
-            negativeSpeechThreshold: 0.5 - 0.15,
-            preSpeechPadFrames: 1,
-            redemptionFrames: 30,
-            frameSamples: 480,
-            minSpeechFrames: 8,
-          });
+        this._frameProcessor = new FrameProcessor({
+          positiveSpeechThreshold: 0.9,
+          negativeSpeechThreshold: 0.5 - 0.15,
+          preSpeechPadFrames: 1,
+          redemptionFrames: 30,
+          frameSamples: 480,
+          minSpeechFrames: 8,
+        });
 
         /**
-         * In order to avoid unnecessary memory related operations a circular buffer was used.
-         * Because the audio worklet input array does not match the sample size required by rnnoise two cases can occur
-         * 1. There is not enough data in which case we buffer it.
-         * 2. There is enough data but some residue remains after the call to `processAudioFrame`, so its buffered
-         * for the next call.
-         * A problem arises when the circular buffer reaches the end and a rollover is required, namely
-         * the residue could potentially be split between the end of buffer and the beginning and would
-         * require some complicated logic to handle. Using the lcm as the size of the buffer will
-         * guarantee that by the time the buffer reaches the end the residue will be a multiple of the
-         * `procNodeSampleRate` and the residue won't be split.
-         */
-          this._circularBufferLength = leastCommonMultiple(this._procNodeSampleRate, this._denoiseSampleSize);
-          this._circularBuffer = new Float32Array(this._circularBufferLength);
-        });
+        * In order to avoid unnecessary memory related operations a circular buffer was used.
+        * Because the audio worklet input array does not match the sample size required by rnnoise two cases can occur
+        * 1. There is not enough data in which case we buffer it.
+        * 2. There is enough data but some residue remains after the call to `processAudioFrame`, so its buffered
+        * for the next call.
+        * A problem arises when the circular buffer reaches the end and a rollover is required, namely
+        * the residue could potentially be split between the end of buffer and the beginning and would
+        * require some complicated logic to handle. Using the lcm as the size of the buffer will
+        * guarantee that by the time the buffer reaches the end the residue will be a multiple of the
+        * `procNodeSampleRate` and the residue won't be split.
+        */
+        this._circularBufferLength = leastCommonMultiple(this._procNodeSampleRate, this._denoiseSampleSize);
+        this._circularBuffer = new Float32Array(this._circularBufferLength);
     }
 
     /**
