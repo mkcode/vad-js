@@ -5,7 +5,12 @@ import { leastCommonMultiple } from './mathUtils';
 import { RnnoiseProcessor, IRnnoiseModule } from './RnnoiseProcessor';
 import { FrameProcessor } from './frameProcessor';
 import { MicNode } from './micNode';
+import { type Message } from "./message"
 
+export interface VadProcessor extends EventTarget {
+  addEventListener(event: "vad", listener: ((this: VadProcessor, ev: CustomEvent<{ msg: Message }>) => any) | null, options?: AddEventListenerOptions | boolean): void;
+  addEventListener(type: string, callback: EventListenerOrEventListenerObject | null, options?: AddEventListenerOptions | boolean): void;
+}
 
 export class VadProcessor extends EventTarget {
     /**
@@ -80,7 +85,7 @@ export class VadProcessor extends EventTarget {
         this._micNode.addEventListener('micFrame', processMicData);
 
 
-        console.log('NoiseSuppressorWorklet: constructor()');
+        // console.log('NoiseSuppressorWorklet: constructor()');
 
         /**
          * The wasm module needs to be compiled to load synchronously as the audio worklet `addModule()`
@@ -96,7 +101,7 @@ export class VadProcessor extends EventTarget {
         this._denoiseSampleSize = this._denoiseProcessor.getSampleLength();
 
         this._frameProcessor = new FrameProcessor({
-          positiveSpeechThreshold: 0.9,
+          positiveSpeechThreshold: 0.95,
           negativeSpeechThreshold: 0.5 - 0.15,
           preSpeechPadFrames: 1,
           redemptionFrames: 30,
