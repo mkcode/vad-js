@@ -1,6 +1,6 @@
 {
   "name": "vad-js",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Accurate and performant VAD package for the browser.",
   "publishConfig": {
     "access": "public"
