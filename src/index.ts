@@ -3,6 +3,13 @@ import { Message } from "./lib/message"
 export { MicNode } from "./lib/micNode"
 export { VadProcessor } from "./lib/vadProcessor"
 
+import * as _utils from "./lib/utils"
+export const utils = {
+  minFramesForTargetMS: _utils.minFramesForTargetMS,
+  arrayBufferToBase64: _utils.arrayBufferToBase64,
+  encodeWAV: _utils.encodeWAV,
+}
+
 export async function initializeRnnoiseWorklet(workletUrl: string | URL, audioContext: AudioContext): Promise<AudioWorkletNode | undefined> {
     // await audioContext.resume();
 
