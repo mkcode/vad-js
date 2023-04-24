@@ -66,18 +66,18 @@ export function encodeWAV(
   return buffer
 }
 
-function interleave(inputL: Float32Array, inputR: Float32Array) {
-  var length = inputL.length + inputR.length
-  var result = new Float32Array(length)
-  var index = 0
-  var inputIndex = 0
-  while (index < length) {
-    result[index++] = inputL[inputIndex] as number
-    result[index++] = inputR[inputIndex] as number
-    inputIndex++
-  }
-  return result
-}
+// function interleave(inputL: Float32Array, inputR: Float32Array) {
+//   var length = inputL.length + inputR.length
+//   var result = new Float32Array(length)
+//   var index = 0
+//   var inputIndex = 0
+//   while (index < length) {
+//     result[index++] = inputL[inputIndex] as number
+//     result[index++] = inputR[inputIndex] as number
+//     inputIndex++
+//   }
+//   return result
+// }
 
 function writeFloat32(output: DataView, offset: number, input: Float32Array) {
   for (var i = 0; i < input.length; i++, offset += 4) {
